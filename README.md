@@ -27,15 +27,54 @@ no frameworks.
      **ID Number: `ADMIN-0001`  Password: `admin123`**
 6. Point your web server's document root to the `public/` folder. This is
    what keeps `core/`, `config/`, `database/` etc. safe from being opened
-   directly in a browser.
-   - Recommended: set up a Virtual Host in XAMPP pointing to `.../lms/public`.
+   directly in a browser. **This step happens outside this project folder**
+   (in Windows and Apache's own settings), so it is **not** something Git
+   can copy for you — every teammate needs to do this once, themselves, on
+   their own PC.
+
+   1. Open Notepad **as Administrator** (right-click it, "Run as
+      administrator").
+   2. File > Open > `c:\windows\system32\drivers\etc\` (change the file
+      type filter to "All Files" to see `hosts`). Add this line at the
+      bottom, then save:
+      ```
+      127.0.0.1 lms.local
+      ```
+   3. Open `c:\xampp\apache\conf\extra\httpd-vhosts.conf`. At the bottom,
+      **type this in yourself instead of pasting it** (pasting can merge
+      it into one broken line in Notepad):
+      ```
+      <VirtualHost *:80>
+          ServerName lms.local
+          DocumentRoot "c:/xampp/htdocs/lms/public"
+          <Directory "c:/xampp/htdocs/lms/public">
+              AllowOverride All
+              Require all granted
+          </Directory>
+      </VirtualHost>
+      ```
+   4. Open `c:\xampp\apache\conf\httpd.conf`, search (Ctrl+F) for
+      `httpd-vhosts`, and make sure the line `Include conf/extra/httpd-vhosts.conf`
+      has **no `#` in front of it**. Careful: the line just above it
+      (`# Virtual hosts`) is a comment and should **keep** its `#` — only
+      remove the `#` from the `Include` line itself.
+   5. Restart Apache from the XAMPP Control Panel (Stop, then Start).
+   6. Check it worked before opening a browser: open Command Prompt and run
+      `c:\xampp\apache\bin\httpd.exe -t` — it should print `Syntax OK`. If
+      it prints an error instead, it will tell you the exact line number
+      to fix.
+   7. Visit `http://lms.local` in your browser — type `http://`, not
+      `https://`, since we haven't set up a secure certificate. If your
+      browser auto-corrects to `https://`, just retype it and press Enter.
+
    - Fallback: every folder outside `public/` already has an `.htaccess`
      file that blocks direct browser access, even without a Virtual Host.
-     (Note: if you skip the Virtual Host, the site will only work correctly
-     under its own domain/subfolder — ask if you'd like the exact Virtual
-     Host steps.)
-7. Visit the site in your browser. You'll be redirected to `/login`.
-   Log in with the admin account above.
+     But without it, redirects and CSS links will point to the wrong
+     place, so this fallback isn't recommended for actually running the
+     site — only as a safety net in case a real deployment can't be
+     configured this way.
+7. Visit the site in your browser at `http://lms.local`. You should land
+   on the catalog homepage. Log in at `/login` with the admin account above.
 
 ## Folder guide
 
