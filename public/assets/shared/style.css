@@ -313,3 +313,18 @@ tr:last-child td { border-bottom: none; }
     text-align: center;
 }
 .site-footer a { color: #fff; }
+
+/* =====================================================================
+   STAFF TOP BAR (sits inside .main-content, above each staff page)
+   ===================================================================== */
+.staff-topbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1.25rem;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.9rem;
+}
+.staff-topbar .nav-user { color: #555; }
