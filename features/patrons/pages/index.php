@@ -4,7 +4,7 @@
  * one module at a time.
  */
 $layout = 'staff';
-Auth::requireLogin();
+Auth::requireRole(['librarian']);
 ?>
 <h1>Patrons</h1>
 <p class="muted">This screen hasn't been designed yet - check back soon.</p>

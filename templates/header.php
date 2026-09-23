@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars(APP_NAME) ?></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/shared/style.css">
 </head>
 <body>
@@ -12,6 +15,7 @@
     <div class="nav-right">
         <?php if (Auth::check()): ?>
             <span class="nav-user"><?= htmlspecialchars(Auth::name()) ?> (<?= htmlspecialchars(Auth::role()) ?>)</span>
+            <a href="/profile">My Profile</a>
             <a href="/logout">Log out</a>
         <?php else: ?>
             <a href="/login">Log in</a>

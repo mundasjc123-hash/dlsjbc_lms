@@ -7,7 +7,7 @@
  * holds, and fines exist.
  */
 $layout = 'staff';
-Auth::requireLogin();
+Auth::requireRole(['admin', 'librarian']);
 
 $recentActivity = [
     ['time' => '10:42 AM', 'action' => 'Checked out - Clean Code',                'who' => 'M. Reyes (staff)',  'badge' => null],

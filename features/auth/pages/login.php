@@ -16,7 +16,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Please enter your ID number and password.';
         } elseif (Auth::attempt($idNumber, $password)) {
             Audit::log(Auth::id(), 'login', 'users', Auth::id());
-            header('Location: /dashboard');
+            // Staff go to their dashboard. Patrons go to the OPAC homepage -
+            // they don't have access to /dashboard anymore (see Auth::requireRole).
+            $destination = in_array(Auth::role(), ['admin', 'librarian'], true) ? '/dashboard' : '/';
+            header('Location: ' . $destination);
             exit;
         } else {
             Audit::log(null, 'login_failed', 'users', null, null, ['id_number' => $idNumber]);

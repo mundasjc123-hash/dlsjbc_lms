@@ -10,7 +10,13 @@ require __DIR__ . '/../core/autoload.php';
 $pdo = Database::connection();
 
 // Roles
-foreach (['admin', 'librarian', 'staff', 'faculty', 'student'] as $role) {
+// Roles - kept deliberately simple:
+//   admin     - manages staff accounts + system settings, plus everything librarian can do
+//   librarian - day-to-day library work (circulation, catalog, patrons, holds, fines, inventory, reports)
+//   patron    - students and faculty alike. Whether they're a student or faculty member
+//               is tracked separately, via patron_categories - that's about borrowing
+//               limits, not screen access, so it isn't a separate role.
+foreach (['admin', 'librarian', 'patron'] as $role) {
     $pdo->prepare("INSERT IGNORE INTO roles (name) VALUES (?)")->execute([$role]);
 }
 
@@ -58,6 +64,59 @@ if (!$check->fetch()) {
     echo "  Password:  admin123\n";
 } else {
     echo "Admin account already exists, skipped.\n";
+}
+
+// One librarian account, so you can test that librarians can reach staff
+// pages (circulation, catalog...) but NOT admin-only ones, once those exist.
+$librarianRoleId = $pdo->query("SELECT id FROM roles WHERE name = 'librarian'")->fetchColumn();
+
+$check->execute(['LIBRARIAN-0001']);
+if (!$check->fetch()) {
+    $pdo->prepare(
+        "INSERT INTO users (role_id, id_number, full_name, email, password_hash)
+         VALUES (?, ?, ?, ?, ?)"
+    )->execute([
+        $librarianRoleId,
+        'LIBRARIAN-0001',
+        'Maria Santos',
+        'librarian@example.edu',
+        password_hash('librarian123', PASSWORD_ARGON2ID),
+    ]);
+    echo "Librarian account created.\n";
+    echo "  ID Number: LIBRARIAN-0001\n";
+    echo "  Password:  librarian123\n";
+} else {
+    echo "Librarian account already exists, skipped.\n";
+}
+
+// One patron account, so you can test that patrons get blocked from staff
+// pages (should see "Access denied", not the dashboard).
+$patronRoleId = $pdo->query("SELECT id FROM roles WHERE name = 'patron'")->fetchColumn();
+$undergradCategoryId = $pdo->query("SELECT id FROM patron_categories WHERE name = 'Undergraduate'")->fetchColumn();
+
+$check->execute(['STUDENT-0001']);
+if (!$check->fetch()) {
+    $pdo->prepare(
+        "INSERT INTO users (role_id, id_number, full_name, email, password_hash)
+         VALUES (?, ?, ?, ?, ?)"
+    )->execute([
+        $patronRoleId,
+        'STUDENT-0001',
+        'Juan dela Cruz',
+        'student@example.edu',
+        password_hash('student123', PASSWORD_ARGON2ID),
+    ]);
+    $newPatronId = $pdo->lastInsertId();
+
+    $pdo->prepare(
+        "INSERT INTO patron_profiles (user_id, patron_category_id) VALUES (?, ?)"
+    )->execute([$newPatronId, $undergradCategoryId]);
+
+    echo "Patron account created.\n";
+    echo "  ID Number: STUDENT-0001\n";
+    echo "  Password:  student123\n";
+} else {
+    echo "Patron account already exists, skipped.\n";
 }
 
 echo "Seeding complete.\n";

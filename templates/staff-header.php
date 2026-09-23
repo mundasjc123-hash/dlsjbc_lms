@@ -17,17 +17,31 @@
             <?php
             // $path comes from public/index.php - shared scope, since every
             // require in this chain runs in the same scope, not a new one.
-            $navItems = [
-                '/dashboard'   => 'Dashboard',
-                '/circulation' => 'Circulation',
-                '/catalog'     => 'Catalog',
-                '/patrons'     => 'Patrons',
-                '/holds'       => 'Holds',
-                '/fines'       => 'Fines',
-                '/inventory'   => 'Inventory',
-                '/reports'     => 'Reports',
-                '/audit'       => 'Audit Log',
-            ];
+            //
+            // Admin and librarian have separate, non-overlapping sets of
+            // day-to-day screens. Reports and Audit Log are the two "oversight"
+            // screens both roles get - everything else is role-specific.
+            if (Auth::role() === 'admin') {
+                $navItems = [
+                    '/dashboard' => 'Dashboard',
+                    '/reports'   => 'Reports',
+                    '/audit'     => 'Audit Log',
+                    '/users'     => 'Users',
+                    '/settings'  => 'Settings',
+                ];
+            } else {
+                $navItems = [
+                    '/dashboard'   => 'Dashboard',
+                    '/circulation' => 'Circulation',
+                    '/catalog'     => 'Catalog',
+                    '/patrons'     => 'Patrons',
+                    '/holds'       => 'Holds',
+                    '/fines'       => 'Fines',
+                    '/inventory'   => 'Inventory',
+                    '/reports'     => 'Reports',
+                    '/audit'       => 'Audit Log',
+                ];
+            }
             foreach ($navItems as $href => $label):
                 $activeClass = ($path === $href) ? ' active' : '';
             ?>
@@ -38,5 +52,6 @@
     <div class="main-content">
         <div class="staff-topbar">
             <span class="nav-user"><?= htmlspecialchars(Auth::name()) ?> (<?= htmlspecialchars(Auth::role()) ?>)</span>
+            <a href="/profile">My Profile</a>
             <a href="/logout">Log out</a>
         </div>
