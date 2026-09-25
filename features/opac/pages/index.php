@@ -1,18 +1,8 @@
 <?php
 /**
  * OPAC homepage - the public catalog, no login required.
- *
- * VISUAL ONLY FOR NOW: the search bar doesn't search yet, and the
- * "recently added" books below are hardcoded sample data. Both get
- * wired to the real database once the catalog feature is built.
  */
-$sampleBooks = [
-    ['title' => 'Clean Code',                 'author' => 'Robert C. Martin'],
-    ['title' => 'Introduction to Algorithms',  'author' => 'Cormen, Leiserson, Rivest & Stein'],
-    ['title' => 'The Pragmatic Programmer',    'author' => 'David Thomas & Andrew Hunt'],
-    ['title' => 'Design Patterns',             'author' => 'Gamma, Helm, Johnson & Vlissides'],
-    ['title' => 'Database System Concepts',    'author' => 'Silberschatz, Korth & Sudarshan'],
-];
+$recentTitles = Title::recentlyAdded(6);
 ?>
 <div class="opac-hero">
     <h1>Find your next book.</h1>
@@ -38,11 +28,14 @@ $sampleBooks = [
 </div>
 
 <div class="book-grid">
-    <?php foreach ($sampleBooks as $book): ?>
-        <div class="book-card">
+    <?php if (!$recentTitles): ?>
+        <p class="muted">No titles in the catalog yet.</p>
+    <?php endif; ?>
+    <?php foreach ($recentTitles as $book): ?>
+        <a href="/opac/title?id=<?= (int) $book['id'] ?>" class="book-card">
             <div class="book-cover"><?= htmlspecialchars($book['title']) ?></div>
             <div class="book-title"><?= htmlspecialchars($book['title']) ?></div>
-            <div class="book-meta"><?= htmlspecialchars($book['author']) ?></div>
-        </div>
+            <div class="book-meta"><?= htmlspecialchars($book['authors'] ?? '') ?></div>
+        </a>
     <?php endforeach; ?>
 </div>

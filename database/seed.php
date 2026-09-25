@@ -42,6 +42,44 @@ foreach (['General Circulation', 'Reference', 'Course Reserve', 'Filipiniana', '
     $pdo->prepare("INSERT IGNORE INTO collections (name) VALUES (?)")->execute([$c]);
 }
 
+// Circulation policies - one row per patron category x material type combo.
+// Loan::checkout() looks up a row here before allowing any checkout at all,
+// so every combination needs one - even non-circulating material types, in
+// case that ever changes.
+$policies = [
+    // category         material        loan_days  renewals  max_loans  fine/day  grace_days
+    ['Undergraduate',  'Book',         7,  1, 3,  5.00, 0],
+    ['Undergraduate',  'AV Material',  3,  1, 1,  5.00, 0],
+    ['Undergraduate',  'Thesis',       7,  0, 1,  5.00, 0],
+    ['Undergraduate',  'Periodical',   3,  0, 2,  5.00, 0],
+
+    ['Graduate',       'Book',         14, 2, 5,  5.00, 1],
+    ['Graduate',       'AV Material',  7,  1, 2,  5.00, 1],
+    ['Graduate',       'Thesis',       14, 1, 2,  5.00, 1],
+    ['Graduate',       'Periodical',   7,  0, 3,  5.00, 1],
+
+    ['Faculty',        'Book',         30, 3, 10, 5.00, 2],
+    ['Faculty',        'AV Material',  14, 2, 3,  5.00, 2],
+    ['Faculty',        'Thesis',       30, 2, 5,  5.00, 2],
+    ['Faculty',        'Periodical',   14, 1, 5,  5.00, 2],
+
+    ['Staff',          'Book',         14, 2, 5,  5.00, 1],
+    ['Staff',          'AV Material',  7,  1, 2,  5.00, 1],
+    ['Staff',          'Thesis',       14, 1, 2,  5.00, 1],
+    ['Staff',          'Periodical',   7,  0, 3,  5.00, 1],
+];
+
+foreach ($policies as [$category, $material, $days, $renewals, $maxLoans, $fine, $grace]) {
+    $pdo->prepare(
+        "INSERT IGNORE INTO circulation_policies
+            (patron_category_id, material_type_id, loan_period_days, max_renewals, max_concurrent_loans, fine_rate_per_day, grace_period_days)
+         SELECT pc.id, mt.id, ?, ?, ?, ?, ?
+         FROM patron_categories pc, material_types mt
+         WHERE pc.name = ? AND mt.name = ?"
+    )->execute([$days, $renewals, $maxLoans, $fine, $grace, $category, $material]);
+}
+echo "Circulation policies seeded (" . count($policies) . " category/material combinations).\n";
+
 // One admin account so you can log in
 $adminRoleId = $pdo->query("SELECT id FROM roles WHERE name = 'admin'")->fetchColumn();
 
