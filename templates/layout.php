@@ -21,6 +21,8 @@ if ($layout === 'staff') {
     require __DIR__ . '/staff-footer.php';
 } else {
     require __DIR__ . '/header.php';
+    echo '<main class="public-content">';
     echo $content;
+    echo '</main>';
     require __DIR__ . '/footer.php';
 }

@@ -267,3 +267,21 @@ CREATE TABLE notifications (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- DIGITAL LIBRARY  (downloadable files attached to a title; not a
+-- physical copy - no barcode, no checkout/return, no due date)
+-- ============================================
+CREATE TABLE digital_files (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  bib_record_id INT NOT NULL,
+  filename VARCHAR(255) NOT NULL,       -- original filename, shown to patrons
+  stored_path VARCHAR(255) NOT NULL,    -- path under storage/digital_files/, not web-accessible directly
+  file_format VARCHAR(20) NOT NULL,     -- PDF, EPUB, etc.
+  file_size_bytes BIGINT NOT NULL,
+  download_count INT NOT NULL DEFAULT 0,
+  uploaded_by INT NOT NULL,
+  uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (bib_record_id) REFERENCES bib_records(id) ON DELETE CASCADE,
+  FOREIGN KEY (uploaded_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

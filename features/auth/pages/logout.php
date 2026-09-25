@@ -5,5 +5,5 @@
  */
 Audit::log(Auth::id(), 'logout', 'users', Auth::id());
 Auth::logout();
-header('Location: /login');
+header('Location: http://lms.local/');
 exit;
