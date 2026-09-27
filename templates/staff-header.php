@@ -34,16 +34,17 @@
                 ];
             } else {
                 $navItems = [
-                    '/dashboard'   => 'Dashboard',
-                    '/circulation' => 'Circulation',
-                    '/catalog'     => 'Catalog',
-                    '/patrons'     => 'Patrons',
-                    '/holds'       => 'Holds',
-                    '/fines'       => 'Fines',
-                    '/inventory'   => 'Inventory',
-                    '/reports'     => 'Reports',
-                    '/audit'       => 'Audit Log',
-                ];
+    '/dashboard'   => 'Dashboard',
+    '/attendance'  => 'Attendance',
+    '/circulation' => 'Circulation',
+    '/catalog'     => 'Catalog',
+    '/patrons'     => 'Patrons',
+    '/holds'       => 'Holds',
+    '/fines'       => 'Fines',
+    '/inventory'   => 'Inventory',
+    '/reports'     => 'Reports',
+    '/audit'       => 'Audit Log',
+];
             }
             foreach ($navItems as $href => $label):
                 $activeClass = ($path === $href) ? ' active' : '';

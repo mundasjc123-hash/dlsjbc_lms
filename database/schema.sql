@@ -285,3 +285,25 @@ CREATE TABLE digital_files (
   FOREIGN KEY (bib_record_id) REFERENCES bib_records(id) ON DELETE CASCADE,
   FOREIGN KEY (uploaded_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- ATTENDANCE LOG  (gate log - who's in the library right now, and who
+-- was in today; separate from Circulation, which tracks item loans)
+-- ============================================
+CREATE TABLE attendance_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  visitor_type ENUM('patron','guest') NOT NULL,
+  user_id INT,                      -- set when visitor_type = 'patron' (student/staff/faculty account)
+  guest_name VARCHAR(150),          -- set when visitor_type = 'guest' (no account)
+  purpose VARCHAR(100) NOT NULL,    -- e.g. Study, Borrow/Return, Research, Computer Use, Other
+  time_in DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  time_out DATETIME,
+  logged_by INT NOT NULL,           -- staff who recorded the check-in
+  checked_out_by INT,               -- staff who recorded the check-out
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (logged_by) REFERENCES users(id),
+  FOREIGN KEY (checked_out_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_attendance_time_in ON attendance_logs (time_in);
+CREATE INDEX idx_attendance_open ON attendance_logs (time_out);
