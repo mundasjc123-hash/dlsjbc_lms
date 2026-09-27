@@ -17,25 +17,53 @@ if (!in_array($purpose, Attendance::PURPOSES, true)) {
 }
 
 if ($visitorType === 'patron') {
+    $patronType = $_POST['patron_type'] ?? '';
     $idNumber = trim($_POST['id_number'] ?? '');
-    $patron = $idNumber !== '' ? Loan::findPatronByIdNumber($idNumber) : null;
+    $manualName = trim($_POST['full_name'] ?? '');
+    $expectedLength = $patronType === 'student' ? 7 : 5;
 
-    if (!$patron) {
-        $_SESSION['flash'] = ['type' => 'error', 'text' => 'No student/staff/faculty account found with ID "' . $idNumber . '".'];
+    if (!in_array($patronType, ['student', 'staff'], true)) {
+        $_SESSION['flash'] = ['type' => 'error', 'text' => 'Please choose Student or Staff/Faculty.'];
         header('Location: /attendance');
         exit;
     }
 
-    $result = Attendance::logPatronEntry($patron['id'], $purpose, Auth::id());
+    if ($idNumber !== '' && !preg_match('/^\d{' . $expectedLength . '}$/', $idNumber)) {
+        $_SESSION['flash'] = ['type' => 'error', 'text' => 'ID number must be exactly ' . $expectedLength . ' digits for ' . ($patronType === 'student' ? 'students' : 'staff/faculty') . '.'];
+        header('Location: /attendance');
+        exit;
+    }
 
-    if ($result['ok']) {
+    $patron = $idNumber !== '' ? Loan::findPatronByIdNumber($idNumber) : null;
+
+    if ($patron) {
+        $result = Attendance::logPatronEntry($patron['id'], $purpose, Auth::id());
+
+        if ($result['ok']) {
+            Audit::log(Auth::id(), 'attendance_checkin', 'attendance_logs', $result['log_id'], null, [
+                'visitor_type' => 'patron',
+                'user_id' => $patron['id'],
+            ]);
+            $_SESSION['flash'] = ['type' => 'success', 'text' => 'Checked in: ' . $patron['full_name'] . '.'];
+        } else {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => $result['error']];
+        }
+    } else {
+        if ($manualName === '') {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'No account found with that ID number. Enter their full name to check them in manually.'];
+            header('Location: /attendance');
+            exit;
+        }
+
+        $result = Attendance::logUnregisteredPatronEntry($patronType, $idNumber, $manualName, $purpose, Auth::id());
+
         Audit::log(Auth::id(), 'attendance_checkin', 'attendance_logs', $result['log_id'], null, [
             'visitor_type' => 'patron',
-            'user_id' => $patron['id'],
+            'patron_type_hint' => $patronType,
+            'manual_id_number' => $idNumber,
+            'full_name' => $manualName,
         ]);
-        $_SESSION['flash'] = ['type' => 'success', 'text' => 'Checked in: ' . $patron['full_name'] . '.'];
-    } else {
-        $_SESSION['flash'] = ['type' => 'error', 'text' => $result['error']];
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'Checked in: ' . $manualName . ' (' . ($patronType === 'student' ? 'student' : 'staff/faculty') . ', not yet in system).'];
     }
 } elseif ($visitorType === 'guest') {
     $guestName = trim($_POST['guest_name'] ?? '');
