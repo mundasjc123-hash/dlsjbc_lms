@@ -172,6 +172,14 @@ $moneyFmt = fn($n) => number_format((float) $n, 2);
     color: #666;
     font-size: .85rem;
 }
+table {
+    width: 100%;
+    table-layout: fixed;
+}
+table th:last-child,
+table td:last-child {
+    text-align: right;
+}
 </style>
 
 <h1>Reports</h1>
