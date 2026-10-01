@@ -43,11 +43,12 @@ class Title
     /** One title (bib_record + its edition) plus its authors and copies. Null if not found. */
     public static function find(int $bibRecordId): ?array
     {
+        self::ensureCallNoColumn();
         $pdo = Database::connection();
 
         $stmt = $pdo->prepare(
             "SELECT br.id, br.title, br.summary,
-                    e.id AS edition_id, e.isbn, e.publisher, e.publication_year, e.format
+                    e.id AS edition_id, e.isbn, e.publisher, e.publication_year, e.format, e.call_no
              FROM bib_records br
              JOIN editions e ON e.bib_record_id = br.id
              WHERE br.id = ?
@@ -86,6 +87,7 @@ class Title
     /** Create a new title. $data keys: title, authors (comma-separated string), isbn, publisher, publication_year, format, summary. Returns the new bib_record id. */
     public static function create(array $data): int
     {
+        self::ensureCallNoColumn();
         $pdo = Database::connection();
 
         $stmt = $pdo->prepare('INSERT INTO bib_records (title, summary) VALUES (?, ?)');
@@ -93,8 +95,8 @@ class Title
         $bibId = (int) $pdo->lastInsertId();
 
         $stmt = $pdo->prepare(
-            'INSERT INTO editions (bib_record_id, isbn, publisher, publication_year, format)
-             VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO editions (bib_record_id, isbn, publisher, publication_year, format, call_no)
+             VALUES (?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $bibId,
@@ -102,6 +104,7 @@ class Title
             $data['publisher'] ?: null,
             $data['publication_year'] ?: null,
             $data['format'] ?: null,
+            ($data['call_no'] ?? '') ?: null,
         ]);
 
         self::saveAuthors($bibId, $data['authors']);
@@ -112,19 +115,21 @@ class Title
     /** Update an existing title and its edition. */
     public static function update(int $bibId, int $editionId, array $data): void
     {
+        self::ensureCallNoColumn();
         $pdo = Database::connection();
 
         $stmt = $pdo->prepare('UPDATE bib_records SET title = ?, summary = ? WHERE id = ?');
         $stmt->execute([$data['title'], $data['summary'] ?: null, $bibId]);
 
         $stmt = $pdo->prepare(
-            'UPDATE editions SET isbn = ?, publisher = ?, publication_year = ?, format = ? WHERE id = ?'
+            'UPDATE editions SET isbn = ?, publisher = ?, publication_year = ?, format = ?, call_no = ? WHERE id = ?'
         );
         $stmt->execute([
             $data['isbn'] ?: null,
             $data['publisher'] ?: null,
             $data['publication_year'] ?: null,
             $data['format'] ?: null,
+            ($data['call_no'] ?? '') ?: null,
             $editionId,
         ]);
 
@@ -208,5 +213,88 @@ class Title
             $pdo->prepare('INSERT IGNORE INTO bib_authors (bib_record_id, author_id) VALUES (?, ?)')
                 ->execute([$bibId, $authorId]);
         }
+    }
+
+    /** Older databases have no editions.call_no yet - add it once, automatically. */
+    private static function ensureCallNoColumn(): void
+    {
+        $pdo = Database::connection();
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'editions' AND COLUMN_NAME = 'call_no'"
+        );
+        if ((int) $stmt->fetchColumn() === 0) {
+            $pdo->exec("ALTER TABLE editions ADD COLUMN call_no VARCHAR(50) NULL AFTER isbn");
+        }
+    }
+
+    /**
+     * Rows for the staff Inventory > Physical Books table: one row per title
+     * (including titles that have no copies yet), with copy counts and the
+     * accession numbers of its copies.
+     *
+     * $filters keys (all optional): collection_id, status (available|borrowed|none),
+     * publisher, year_from, year_to.
+     */
+    public static function inventoryList(string $q = '', array $filters = []): array
+    {
+        self::ensureCallNoColumn();
+        $like = '%' . $q . '%';
+
+        $where = [
+            "(br.title LIKE ? OR e.call_no LIKE ? OR i.accession_number LIKE ? OR i.barcode LIKE ?
+              OR EXISTS (SELECT 1 FROM bib_authors ba2 JOIN authors a2 ON a2.id = ba2.author_id
+                          WHERE ba2.bib_record_id = br.id AND a2.name LIKE ?))"
+        ];
+        $params = [$like, $like, $like, $like, $like];
+
+        if (!empty($filters['collection_id'])) {
+            $where[] = 'EXISTS (SELECT 1 FROM items i2 WHERE i2.edition_id = e.id AND i2.collection_id = ?)';
+            $params[] = (int) $filters['collection_id'];
+        }
+        if (($filters['publisher'] ?? '') !== '') {
+            $where[] = 'e.publisher LIKE ?';
+            $params[] = '%' . $filters['publisher'] . '%';
+        }
+        if (!empty($filters['year_from'])) {
+            $where[] = 'e.publication_year >= ?';
+            $params[] = (int) $filters['year_from'];
+        }
+        if (!empty($filters['year_to'])) {
+            $where[] = 'e.publication_year <= ?';
+            $params[] = (int) $filters['year_to'];
+        }
+
+        $havingByStatus = [
+            'available' => 'available_copies > 0',
+            'borrowed'  => 'total_copies > 0 AND available_copies = 0',
+            'none'      => 'total_copies = 0',
+        ];
+        $having = isset($havingByStatus[$filters['status'] ?? ''])
+            ? 'HAVING ' . $havingByStatus[$filters['status']]
+            : '';
+
+        $stmt = Database::connection()->prepare(
+            "SELECT br.id, br.title,
+                    e.call_no, e.edition_statement, e.publisher, e.publication_year,
+                    (SELECT GROUP_CONCAT(a.name SEPARATOR ', ')
+                       FROM bib_authors ba JOIN authors a ON a.id = ba.author_id
+                      WHERE ba.bib_record_id = br.id) AS authors,
+                    GROUP_CONCAT(COALESCE(i.accession_number, i.barcode) ORDER BY i.id SEPARATOR '; ') AS accessions,
+                    GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS book_location,
+                    COUNT(i.id) AS total_copies,
+                    COALESCE(SUM(CASE WHEN i.status = 'available' THEN 1 ELSE 0 END), 0) AS available_copies
+             FROM bib_records br
+             LEFT JOIN editions e ON e.bib_record_id = br.id
+             LEFT JOIN items i ON i.edition_id = e.id
+             LEFT JOIN collections c ON c.id = i.collection_id
+             WHERE " . implode(' AND ', $where) . "
+             GROUP BY br.id, e.id
+             $having
+             ORDER BY br.id DESC
+             LIMIT 500"
+        );
+        $stmt->execute($params);
+        return $stmt->fetchAll();
     }
 }

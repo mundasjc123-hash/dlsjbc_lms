@@ -24,6 +24,7 @@ $values = [
     'title'            => $title['title'] ?? '',
     'authors'          => $editing ? implode(', ', $title['authors']) : '',
     'isbn'             => $title['isbn'] ?? '',
+    'call_no'          => $title['call_no'] ?? '',
     'publisher'        => $title['publisher'] ?? '',
     'publication_year' => $title['publication_year'] ?? '',
     'format'           => $title['format'] ?? '',
@@ -38,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'title'            => trim($_POST['title'] ?? ''),
             'authors'          => trim($_POST['authors'] ?? ''),
             'isbn'             => trim($_POST['isbn'] ?? ''),
+            'call_no'          => trim($_POST['call_no'] ?? ''),
             'publisher'        => trim($_POST['publisher'] ?? ''),
             'publication_year' => trim($_POST['publication_year'] ?? ''),
             'format'           => trim($_POST['format'] ?? ''),
@@ -83,6 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </label>
     <label>ISBN
         <input type="text" name="isbn" value="<?= htmlspecialchars($values['isbn']) ?>">
+    </label>
+    <label>Call No
+        <input type="text" name="call_no" value="<?= htmlspecialchars($values['call_no']) ?>">
     </label>
     <label>Publisher
         <input type="text" name="publisher" value="<?= htmlspecialchars($values['publisher']) ?>">
