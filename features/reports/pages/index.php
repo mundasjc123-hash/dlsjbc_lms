@@ -185,13 +185,12 @@ table td:last-child {
 <h1>Reports</h1>
 <p class="muted">Circulation, inventory, patron activity, fines, and acquisitions at a glance.</p>
 
-<form method="get" class="no-print" style="display:flex; gap:.75rem; align-items:end; flex-wrap:wrap; margin:1rem 0;">
-    <label>From<br><input type="date" name="from" value="<?= $e($from) ?>" style="padding:.4rem;"></label>
-    <label>To<br><input type="date" name="to" value="<?= $e($to) ?>" style="padding:.4rem;"></label>
-    <button type="submit" class="btn btn-primary">Apply</button>
-    <button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>
-    <a class="btn btn-secondary"
-       href="?from=<?= urlencode($from) ?>&to=<?= urlencode($to) ?>&export=csv">Export to Excel (CSV)</a>
+<form method="get" class="no-print" style="display:flex; gap:.75rem; align-items:end; flex-wrap:wrap">
+    <input type="hidden" name="page" value="reports">
+    <label>From:<br><input type="date" name="from" value="<?= $e($from) ?>"></label>
+    <label>To:<br><input type="date" name="to" value="<?= $e($to) ?>"></label>
+    <button class="btn">Apply</button>
+    <button class="btn" onclick="window.print()">Print / PDF</button>
 </form>
 <p class="muted no-print">Date-based sections below (circulation, top borrowers, fines, acquisitions) reflect <?= $e($from) ?> to <?= $e($to) ?>. Overdue loans and outstanding balances always reflect right now.</p>
 
