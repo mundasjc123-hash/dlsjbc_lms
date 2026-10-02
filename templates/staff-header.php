@@ -38,6 +38,7 @@
     '/attendance'  => 'Attendance',
     '/circulation' => 'Circulation',
     '/catalog'     => 'Catalog',
+    '/serials'     => 'Serials',
     '/patrons'     => 'Patrons',
     '/holds'       => 'Holds',
     '/fines'       => 'Fines',

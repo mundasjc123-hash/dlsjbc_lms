@@ -44,11 +44,11 @@ class Title
     public static function find(int $bibRecordId): ?array
     {
         self::ensureCallNoColumn();
-        $pdo = Database::connection();
+        $pdo = Database::connection(); 
 
         $stmt = $pdo->prepare(
-            "SELECT br.id, br.title, br.summary,
-                    e.id AS edition_id, e.isbn, e.publisher, e.publication_year, e.format, e.call_no
+            "SELECT br.id, br.title, br.summary, br.issn, br.frequency,
+                    e.id AS edition_id, e.isbn, e.publisher, e.publication_year, e.format
              FROM bib_records br
              JOIN editions e ON e.bib_record_id = br.id
              WHERE br.id = ?
@@ -68,8 +68,9 @@ class Title
         $stmt->execute([$bibRecordId]);
         $title['authors'] = array_column($stmt->fetchAll(), 'name');
 
-        $stmt = $pdo->prepare(
+       $stmt = $pdo->prepare(
             "SELECT i.id, i.barcode, i.status, i.item_condition, i.price,
+                    i.volume_no, i.issue_no, i.date_published,
                     mt.name AS material_type_name, c.name AS collection_name, l.name AS location_name
              FROM items i
              JOIN material_types mt ON mt.id = i.material_type_id
@@ -142,8 +143,8 @@ class Title
         $pdo = Database::connection();
 
         $stmt = $pdo->prepare(
-            "INSERT INTO items (edition_id, material_type_id, collection_id, location_id, barcode, status, item_condition, date_acquired, price)
-             VALUES (?, ?, ?, ?, ?, 'available', 'good', CURDATE(), ?)"
+            "INSERT INTO items (edition_id, material_type_id, collection_id, location_id, barcode, volume_no, issue_no, date_published, status, item_condition, date_acquired, price)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available', 'good', CURDATE(), ?)"
         );
         $stmt->execute([
             $editionId,
@@ -151,10 +152,47 @@ class Title
             $data['collection_id'],
             $data['location_id'] ?: null,
             $data['barcode'],
+            $data['volume_no'] ?: null,
+            $data['issue_no'] ?: null,
+            $data['date_published'] ?: null,
             $data['price'] ?: null,
         ]);
 
         return (int) $pdo->lastInsertId();
+    }
+
+    /** Periodicals for the Serials list: ISSN, frequency, latest issue label, and total issue count. */
+    public static function periodicals(string $q = ''): array
+    {
+        $pdo = Database::connection();
+        $like = '%' . $q . '%';
+
+        $stmt = $pdo->prepare(
+            "SELECT br.id, br.title, br.issn, br.frequency,
+                    (SELECT GROUP_CONCAT(a.name SEPARATOR ', ')
+                       FROM bib_authors ba JOIN authors a ON a.id = ba.author_id
+                      WHERE ba.bib_record_id = br.id) AS authors,
+                    COUNT(i.id) AS total_issues,
+                    (SELECT CONCAT_WS(' ',
+                                CASE WHEN i2.volume_no IS NOT NULL THEN CONCAT('Vol. ', i2.volume_no) END,
+                                CASE WHEN i2.issue_no IS NOT NULL THEN CONCAT('No. ', i2.issue_no) END,
+                                CASE WHEN i2.date_published IS NOT NULL THEN CONCAT('(', DATE_FORMAT(i2.date_published, '%b %Y'), ')') END
+                            )
+                       FROM items i2
+                       JOIN material_types mt2 ON mt2.id = i2.material_type_id
+                      WHERE i2.edition_id = e.id AND mt2.name = 'Periodical'
+                      ORDER BY COALESCE(i2.date_published, i2.date_acquired) DESC, i2.id DESC
+                      LIMIT 1) AS latest_issue
+             FROM bib_records br
+             JOIN editions e ON e.bib_record_id = br.id
+             JOIN items i ON i.edition_id = e.id
+             JOIN material_types mt ON mt.id = i.material_type_id
+             WHERE mt.name = 'Periodical' AND br.title LIKE ?
+             GROUP BY br.id, e.id
+             ORDER BY br.title"
+        );
+        $stmt->execute([$like]);
+        return $stmt->fetchAll();
     }
 
     /** Most recently added titles, for the OPAC homepage. */
