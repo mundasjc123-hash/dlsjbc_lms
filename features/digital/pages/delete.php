@@ -16,5 +16,5 @@ if ($id) {
     $_SESSION['flash'] = ['type' => 'success', 'text' => 'File removed.'];
 }
 
-header('Location: /catalog/edit?id=' . $bibId);
+header('Location: ' . (($_POST['return'] ?? '') === 'inventory' ? '/inventory?tab=digital' : '/catalog/edit?id=' . $bibId));
 exit;

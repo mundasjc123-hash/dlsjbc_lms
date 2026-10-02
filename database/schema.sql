@@ -279,6 +279,9 @@ CREATE TABLE digital_files (
   stored_path VARCHAR(255) NOT NULL,    -- path under storage/digital_files/, not web-accessible directly
   file_format VARCHAR(20) NOT NULL,     -- PDF, EPUB, etc.
   file_size_bytes BIGINT NOT NULL,
+  call_no VARCHAR(50),                  -- shown in Inventory > Digital Library
+  accession_number VARCHAR(50),
+  book_location VARCHAR(100) NOT NULL DEFAULT 'Digital Library',
   download_count INT NOT NULL DEFAULT 0,
   uploaded_by INT NOT NULL,
   uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

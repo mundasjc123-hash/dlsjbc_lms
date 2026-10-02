@@ -55,6 +55,80 @@ class DigitalFile
         return $stmt->fetchAll();
     }
 
+    /**
+     * Older databases don't have the Inventory columns yet. Add them once,
+     * automatically, so the Inventory page works without a manual migration.
+     */
+    private static function ensureInventoryColumns(): void
+    {
+        $pdo = Database::connection();
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'digital_files' AND COLUMN_NAME = 'call_no'"
+        );
+        if ((int) $stmt->fetchColumn() === 0) {
+            $pdo->exec(
+                "ALTER TABLE digital_files
+                   ADD COLUMN call_no VARCHAR(50) NULL AFTER file_size_bytes,
+                   ADD COLUMN accession_number VARCHAR(50) NULL AFTER call_no,
+                   ADD COLUMN book_location VARCHAR(100) NOT NULL DEFAULT 'Digital Library' AFTER accession_number"
+            );
+        }
+    }
+
+    /**
+     * Rows for the staff Inventory > Digital Books table: one row per
+     * digital file, with the same columns as the physical Book Masterlist.
+     *
+     * $filters keys (all optional): format, publisher, year_from, year_to.
+     */
+    public static function inventoryList(string $q = '', array $filters = []): array
+    {
+        self::ensureInventoryColumns();
+        $like = '%' . $q . '%';
+
+        $where = [
+            "(br.title LIKE ? OR df.call_no LIKE ? OR df.accession_number LIKE ?
+              OR EXISTS (SELECT 1 FROM bib_authors ba2 JOIN authors a2 ON a2.id = ba2.author_id
+                          WHERE ba2.bib_record_id = br.id AND a2.name LIKE ?))"
+        ];
+        $params = [$like, $like, $like, $like];
+
+        if (($filters['format'] ?? '') !== '') {
+            $where[] = 'df.file_format = ?';
+            $params[] = $filters['format'];
+        }
+        if (($filters['publisher'] ?? '') !== '') {
+            $where[] = 'e.publisher LIKE ?';
+            $params[] = '%' . $filters['publisher'] . '%';
+        }
+        if (!empty($filters['year_from'])) {
+            $where[] = 'e.publication_year >= ?';
+            $params[] = (int) $filters['year_from'];
+        }
+        if (!empty($filters['year_to'])) {
+            $where[] = 'e.publication_year <= ?';
+            $params[] = (int) $filters['year_to'];
+        }
+
+        $stmt = Database::connection()->prepare(
+            "SELECT df.id, df.call_no, df.accession_number, df.book_location, df.file_format,
+                    br.id AS bib_record_id, br.title,
+                    e.edition_statement, e.publisher, e.publication_year,
+                    (SELECT GROUP_CONCAT(a.name SEPARATOR ', ')
+                       FROM bib_authors ba JOIN authors a ON a.id = ba.author_id
+                      WHERE ba.bib_record_id = br.id) AS authors
+             FROM digital_files df
+             JOIN bib_records br ON br.id = df.bib_record_id
+             LEFT JOIN editions e ON e.bib_record_id = br.id
+             WHERE " . implode(' AND ', $where) . "
+             ORDER BY df.id DESC
+             LIMIT 500"
+        );
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
     /** True if $filename's extension is one Digital Library accepts. */
     public static function isAllowedFilename(string $filename): bool
     {
